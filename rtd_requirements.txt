@@ -1,0 +1,7 @@
+sphinx
+numpydoc
+mock
+myst-parser
+myst-NB
+pydata_sphinx_theme
+splaat
