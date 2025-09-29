@@ -1,16 +1,17 @@
-name: polyglotdb-dev
+name: splaat-dev
 channels:
     - conda-forge
 dependencies:
-    - openjdk=21
-    - pip
+    - python=3.12
+    - matplotlib
+    - seaborn
+    - bokeh
+    - jupyter
     - librosa
     - scipy
+    - numpy
     - praatio
-    - influxdb
-    - tqdm
-    - future
-    - requests
-    - neo4j-python-driver
-    - pip:
-        - conch-sounds
+    - pandas
+    - panel
+    - holoviews
+    - pytest

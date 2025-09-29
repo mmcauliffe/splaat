@@ -1,3 +1,11 @@
 matplotlib
 seaborn
+bokeh
+jupyter
 librosa
+scipy
+numpy
+praatio
+pandas
+panel
+holoviews
