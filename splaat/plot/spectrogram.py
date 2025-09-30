@@ -204,7 +204,6 @@ def plot_spectrogram(
         sample_rate,
         target_sample_rate=target_sample_rate,
         preemph=preemph,
-        quiet=True,
     )
 
     start_sample = int(start * sample_rate)  # index of starting time: seconds to samples
