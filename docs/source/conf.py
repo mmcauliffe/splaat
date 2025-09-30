@@ -32,6 +32,7 @@ source_suffix = {
     ".rst": "restructuredtext",
     ".ipynb": "myst-nb",
 }
+nb_execution_timeout = 60
 
 myst_enable_extensions = [
     "amsmath",
