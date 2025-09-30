@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from splaat.audio.prep import prep_audio
 
 
-def compute_spectrogram(signal: np.ndarray, sample_rate: int, window_size: float = 0.008):
+def compute_spectrogram(signal: np.ndarray, sample_rate: int, window_size: float = 0.008, time_steps:int = 1000):
     """Compute a spectrogram from input waveform array of samples.
 
     Parameters
@@ -36,8 +36,8 @@ def compute_spectrogram(signal: np.ndarray, sample_rate: int, window_size: float
     if signal.ndim > 1:
         signal = signal[0, :]
     x2 = np.rint(32000 * (signal/max(signal))).astype(np.intc)    # scale the signal
-
-    step = 0.001    # step size between spectral slices (sec)
+    duration = signal.shape[0] / sample_rate
+    step = max(duration/time_steps, 0.001)
     order = 13    # FFT size = 2 ^ order
 
     # set up parameters for signal.spectrogram()
@@ -50,7 +50,7 @@ def compute_spectrogram(signal: np.ndarray, sample_rate: int, window_size: float
                                      nfft = nfft, scaling='spectrum', mode = 'magnitude', detrend = 'linear')
     spec = 20 * np.log10(spec+1)    # put spectrum on decibel scale
 
-    return freqs,times, spec
+    return freqs, times, spec
 
 
 def plot_spectrogram(

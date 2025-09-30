@@ -1,0 +1,16 @@
+channels:
+  - conda-forge
+dependencies:
+    - python=3.12
+    - matplotlib
+    - seaborn
+    - bokeh
+    - jupyter
+    - librosa
+    - scipy
+    - numpy
+    - praatio
+    - pandas
+    - panel
+    - holoviews
+    - pytest

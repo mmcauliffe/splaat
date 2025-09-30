@@ -1,16 +1,47 @@
-.. splaat documentation master file, created by
-   sphinx-quickstart on Mon Sep 29 11:08:12 2025.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
 splaat documentation
 ====================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+.. grid:: 1
 
+    .. grid-item-card:: Installation
+       :text-align: center
+
+       :fas:`running;fa-6x i-navigation`
+
+       ^^^
+
+       Walk through installing splaat
+
+       +++
+
+       .. button-ref:: getting_started
+          :expand:
+          :color: primary
+
+          Install splaat
+
+    .. grid-item-card:: Examples
+       :text-align: center
+
+       :fas:`running;fa-6x i-navigation`
+
+       ^^^
+
+       See examples.
+
+       +++
+
+       .. button-ref:: examples
+          :expand:
+          :color: primary
+
+          Examples
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :hidden:
+
+   Installation <installation.rst>
+   Examples <examples/index.md>
+   API reference <reference/index.rst>
+   Changelog <changelog/index.rst>
