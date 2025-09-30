@@ -1,19 +1,18 @@
 import numpy as np
-from scipy.signal import resample_poly
 from librosa.effects import preemphasis
+from scipy.signal import resample_poly
 
 
 def prep_audio(
-        audio:np.ndarray,
-        sample_rate:int,
-        target_sample_rate=None,
-        dither:float=None,
-        preemph:float = None,
-        scale:float = None,
-        output_type: np.dtype = np.float32,
-        quiet = True
+    audio: np.ndarray,
+    sample_rate: int,
+    target_sample_rate=None,
+    dither: float = None,
+    preemph: float = None,
+    scale: float = None,
+    output_type: np.dtype = np.float32,
 ):
-    """ Prepare an array of audio waveform samples for acoustic analysis.
+    """Prepare an array of audio waveform samples for acoustic analysis.
 
     Parameters
     ==========
@@ -49,37 +48,11 @@ def prep_audio(
         fs : int
             the sampling rate of the audio in **y**.
 
-    Note
-    ====
-    By default, this function will return audio with a sampling rate of 32 kHz and scaled to be in the range from [1,-1]
-
-    Example
-    =======
-    Open a sound file and prepare it for acoustic analysis.  By default, prep_audio() will
-    resample the audio to a sampling rate of 32000, and scale the waveform to use the full range.
-    In this example, we have also asked the function to apply a preemphasis factor of 1 (about 6dB/octave).
-
-    .. code-block:: Python
-
-        y,fs = phon.loadsig("sound.wav",chansel=[0])
-        x,fs = phon.prep_audio(y, fs, pre=1)
-
-    Take the right channel, and resample to 16,000 Hz
-
-    .. code-block:: Python
-
-        *chans,fs = phon.loadsig("sound.wav")
-        print(f'the old sampling rate is: {fs}')
-        y,fs = phon.prep_audio(chans[1],fs, target_fs=16000)
-        print(f'the new sampling rate is: {fs}')
-
-        """
+    """
     if target_sample_rate is None:
         target_sample_rate = sample_rate
     else:
         if target_sample_rate != sample_rate:
-            if not quiet:
-                print(f'Resampling from {sample_rate} to {target_sample_rate}')
             cd = np.gcd(sample_rate, target_sample_rate)  # common denominator
             audio = resample_poly(audio, up=target_sample_rate / cd, down=sample_rate / cd)
     if (np.max(audio) + np.min(audio)) < 0:
@@ -89,7 +62,7 @@ def prep_audio(
     if scale is not None:
         audio /= np.max(audio) * scale
     if dither is not None:
-        audio += ((np.random.rand(len(audio)) - 0.5) * dither)
+        audio += (np.random.rand(len(audio)) - 0.5) * dither
     if output_type in {np.int8, np.int16, np.int32, np.int64}:
         audio = np.rint(np.iinfo(output_type).max * audio).astype(output_type)
     return audio, target_sample_rate

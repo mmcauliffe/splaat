@@ -29,8 +29,8 @@ extensions = [
 ]
 
 source_suffix = {
-    '.rst': 'restructuredtext',
-    '.ipynb': 'myst-nb',
+    ".rst": "restructuredtext",
+    ".ipynb": "myst-nb",
 }
 
 myst_enable_extensions = [

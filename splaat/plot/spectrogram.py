@@ -1,14 +1,18 @@
 import typing
 
-import numpy as np
-from scipy.signal import spectrogram
-from scipy.signal import windows
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.signal import spectrogram, windows
 
 from splaat.audio.prep import prep_audio
 
 
-def compute_spectrogram(signal: np.ndarray, sample_rate: int, window_size: float = 0.008, time_steps:int = 1000):
+def compute_spectrogram(
+    signal: np.ndarray,
+    sample_rate: int,
+    window_size: float = 0.008,
+    time_steps: int = 1000,
+):
     """Compute a spectrogram from input waveform array of samples.
 
     Parameters
@@ -35,39 +39,48 @@ def compute_spectrogram(signal: np.ndarray, sample_rate: int, window_size: float
     """
     if signal.ndim > 1:
         signal = signal[0, :]
-    x2 = np.rint(32000 * (signal/max(signal))).astype(np.intc)    # scale the signal
+    x2 = np.rint(32000 * (signal / max(signal))).astype(np.intc)  # scale the signal
     duration = signal.shape[0] / sample_rate
-    step = max(duration/time_steps, 0.001)
-    order = 13    # FFT size = 2 ^ order
+    step = max(duration / time_steps, 0.001)
+    order = 13  # FFT size = 2 ^ order
 
     # set up parameters for signal.spectrogram()
-    noverlap = int((window_size-step)*sample_rate) # skip forward by step between each frame
-    nperseg = int(window_size*sample_rate)         # number of samples per waveform window
-    nfft = np.power(2,order)    # number of points in the fft
+    noverlap = int((window_size - step) * sample_rate)  # skip forward by step between each frame
+    nperseg = int(window_size * sample_rate)  # number of samples per waveform window
+    nfft = np.power(2, order)  # number of points in the fft
     window = windows.blackmanharris(nperseg)
 
-    freqs, times, spec = spectrogram(x2,fs=sample_rate,noverlap = noverlap, window=window, nperseg = nperseg,
-                                     nfft = nfft, scaling='spectrum', mode = 'magnitude', detrend = 'linear')
-    spec = 20 * np.log10(spec+1)    # put spectrum on decibel scale
+    freqs, times, spec = spectrogram(
+        x2,
+        fs=sample_rate,
+        noverlap=noverlap,
+        window=window,
+        nperseg=nperseg,
+        nfft=nfft,
+        scaling="spectrum",
+        mode="magnitude",
+        detrend="linear",
+    )
+    spec = 20 * np.log10(spec + 1)  # put spectrum on decibel scale
 
     return freqs, times, spec
 
 
 def plot_spectrogram(
-        audio:np.ndarray,
-        sample_rate: int,
-        channel:int=0,
-        start:float=0,
-        end:float =-1,
-        max_frequency: int = 8000,
-        window_size: typing.Union[typing.Literal['wide_band', 'narrow_band'], float] = 'wide_band',
-        preemph: float = 0.94,
-        font_size = 14,
-        min_prop = 0.2,
-        cmap='Greys',
-        figure_height = 4.5,
-        figure_width = 12,
-        dpi=72,
+    audio: np.ndarray,
+    sample_rate: int,
+    channel: int = 0,
+    start: float = 0,
+    end: float = -1,
+    max_frequency: int = 8000,
+    window_size: typing.Union[typing.Literal["wide_band", "narrow_band"], float] = "wide_band",
+    preemph: float = 0.94,
+    font_size=14,
+    min_prop=0.2,
+    cmap="Greys",
+    figure_height=4.5,
+    figure_width=12,
+    dpi=72,
 ):
     """Make pretty good looking spectrograms
 
@@ -170,12 +183,14 @@ def plot_spectrogram(
          Showing the spectrogram of sine-wave synthesis.
 
     """
-    target_sample_rate = max_frequency*2    # top frequency is the Nyquist frequency for the analysis
+    target_sample_rate = (
+        max_frequency * 2
+    )  # top frequency is the Nyquist frequency for the analysis
 
-    if window_size == 'wide_band':
-        window_size = 0.008     # analysis window size for wide band spectrogram
-    elif window_size == 'narrow_band':
-        window_size = 0.04    # analysis window size for narrow band spectrogram (sec)
+    if window_size == "wide_band":
+        window_size = 0.008  # analysis window size for wide band spectrogram
+    elif window_size == "narrow_band":
+        window_size = 0.04  # analysis window size for narrow band spectrogram (sec)
 
     # set up parameters for the spectrogram window
     cmap = plt.get_cmap(cmap)
@@ -184,28 +199,48 @@ def plot_spectrogram(
         audio = audio[channel, :]
 
     # ----------- read and condition waveform -----------------------
-    audio, sample_rate = prep_audio(audio, sample_rate, target_sample_rate = target_sample_rate, preemph = preemph,quiet=True)
+    audio, sample_rate = prep_audio(
+        audio,
+        sample_rate,
+        target_sample_rate=target_sample_rate,
+        preemph=preemph,
+        quiet=True,
+    )
 
-    start_sample = int(start * sample_rate)     # index of starting time: seconds to samples
-    end_sample = int(end * sample_rate)     # index of ending time
-    if end_sample < 0 or end_sample > len(audio):    # stop at the end of the waveform
+    start_sample = int(start * sample_rate)  # index of starting time: seconds to samples
+    end_sample = int(end * sample_rate)  # index of ending time
+    if end_sample < 0 or end_sample > len(audio):  # stop at the end of the waveform
         end_sample = len(audio)
-    if start_sample > end_sample:                # don't let start follow end
+    if start_sample > end_sample:  # don't let start follow end
         start_sample = 0
 
     # ----------- compute the spectrogram ---------------------------------
-    freqs, times, spec = compute_spectrogram(audio[start_sample:end_sample],sample_rate, window_size)
+    freqs, times, spec = compute_spectrogram(
+        audio[start_sample:end_sample], sample_rate, window_size
+    )
 
     # ------------ display in a matplotlib figure --------------------
-    times = np.add(times,start)    # increment the spectrogram time by the start value
-    fig = plt.figure(figsize=(figure_width, figure_height),dpi=dpi)
+    times = np.add(times, start)  # increment the spectrogram time by the start value
+    fig = plt.figure(figsize=(figure_width, figure_height), dpi=dpi)
     ax1 = fig.add_subplot(111)
 
-    vmin = np.min(spec) + (np.max(spec)-np.min(spec))*min_prop
-    extent = (min(times),max(times),min(freqs),max(freqs))    # get the time and frequency values for indices.
-    im = ax1.imshow(spec, aspect='auto', interpolation='nearest', cmap=cmap, vmin = vmin,
-                    extent = extent, origin='lower')
-    ax1.grid(which='major', axis='y', linestyle=':')    # add grid lines
+    vmin = np.min(spec) + (np.max(spec) - np.min(spec)) * min_prop
+    extent = (
+        min(times),
+        max(times),
+        min(freqs),
+        max(freqs),
+    )  # get the time and frequency values for indices.
+    _ = ax1.imshow(
+        spec,
+        aspect="auto",
+        interpolation="nearest",
+        cmap=cmap,
+        vmin=vmin,
+        extent=extent,
+        origin="lower",
+    )
+    ax1.grid(which="major", axis="y", linestyle=":")  # add grid lines
     ax1.set_xlabel("Time (sec)", size=font_size)
     ax1.set_ylabel("Frequency (Hz)", size=font_size)
     ax1.tick_params(labelsize=font_size)

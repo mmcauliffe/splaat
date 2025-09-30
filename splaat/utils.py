@@ -1,5 +1,3 @@
-
-
 def get_splaat_version() -> str:
     """
     Get the current splaat version

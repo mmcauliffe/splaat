@@ -1,11 +1,6 @@
-import os
 import pathlib
-import subprocess
-from io import BytesIO
 
-import librosa
 import pytest
-import soundfile
 
 
 @pytest.fixture(scope="session")

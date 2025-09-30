@@ -1,5 +1,5 @@
-import numpy as np
 import librosa
+import numpy as np
 
 
 def load_audio(path, channel=None, begin=0.0, end=None, sample_rate=None, dtype=np.float32):
