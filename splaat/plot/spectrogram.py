@@ -78,6 +78,7 @@ def plot_spectrogram(
     font_size=14,
     min_prop=0.2,
     cmap="Greys",
+    axis =None,
     figure_height=4.5,
     figure_width=12,
     dpi=72,
@@ -220,8 +221,9 @@ def plot_spectrogram(
 
     # ------------ display in a matplotlib figure --------------------
     times = np.add(times, start)  # increment the spectrogram time by the start value
-    fig = plt.figure(figsize=(figure_width, figure_height), dpi=dpi)
-    ax1 = fig.add_subplot(111)
+    if axis is None:
+        fig = plt.figure(figsize=(figure_width, figure_height), dpi=dpi)
+        axis = fig.add_subplot(111)
 
     vmin = np.min(spec) + (np.max(spec) - np.min(spec)) * min_prop
     extent = (
@@ -230,7 +232,7 @@ def plot_spectrogram(
         min(freqs),
         max(freqs),
     )  # get the time and frequency values for indices.
-    _ = ax1.imshow(
+    _ = axis.imshow(
         spec,
         aspect="auto",
         interpolation="nearest",
@@ -239,11 +241,9 @@ def plot_spectrogram(
         extent=extent,
         origin="lower",
     )
-    ax1.grid(which="major", axis="y", linestyle=":")  # add grid lines
-    ax1.set_xlabel("Time (sec)", size=font_size)
-    ax1.set_ylabel("Frequency (Hz)", size=font_size)
-    ax1.tick_params(labelsize=font_size)
+    axis.grid(which="major", axis="y", linestyle=":")  # add grid lines
+    axis.set_xlabel("Time (sec)", size=font_size)
+    axis.set_ylabel("Frequency (Hz)", size=font_size)
+    axis.tick_params(labelsize=font_size)
 
-    plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-
-    return fig, freqs, times, spec
+    return axis, freqs, times, spec

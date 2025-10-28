@@ -9,3 +9,4 @@ praatio
 pandas
 panel
 holoviews
+rich-click
