@@ -41,7 +41,7 @@ def compute_spectrogram(
         signal = signal[0, :]
     x2 = np.rint(32000 * (signal / max(signal))).astype(np.intc)  # scale the signal
     duration = signal.shape[0] / sample_rate
-    step = max(duration / time_steps, 0.001)
+    step = duration / time_steps
     order = 13  # FFT size = 2 ^ order
 
     # set up parameters for signal.spectrogram()
@@ -75,12 +75,17 @@ def plot_spectrogram(
     max_frequency: int = 8000,
     window_size: typing.Union[typing.Literal["wide_band", "narrow_band"], float] = "wide_band",
     preemph: float = 0.94,
+    time_steps: int = 1000,
     font_size=14,
     min_prop=0.2,
     cmap="Greys",
     figure_height=4.5,
     figure_width=12,
     dpi=72,
+    figure=None,
+    ax=None,
+    background_color="white",
+    foreground_color="black",
 ):
     """Make pretty good looking spectrograms
 
@@ -215,13 +220,18 @@ def plot_spectrogram(
 
     # ----------- compute the spectrogram ---------------------------------
     freqs, times, spec = compute_spectrogram(
-        audio[start_sample:end_sample], sample_rate, window_size
+        audio[start_sample:end_sample], sample_rate, window_size, time_steps=time_steps
     )
 
     # ------------ display in a matplotlib figure --------------------
     times = np.add(times, start)  # increment the spectrogram time by the start value
-    fig = plt.figure(figsize=(figure_width, figure_height), dpi=dpi)
-    ax1 = fig.add_subplot(111)
+    if ax is None:
+        if figure is None:
+            figure = plt.figure(
+                figsize=(figure_width, figure_height), dpi=dpi, facecolor=background_color
+            )
+        ax = figure.add_subplot(212)
+        ax.set_facecolor(background_color)
 
     vmin = np.min(spec) + (np.max(spec) - np.min(spec)) * min_prop
     extent = (
@@ -230,7 +240,7 @@ def plot_spectrogram(
         min(freqs),
         max(freqs),
     )  # get the time and frequency values for indices.
-    _ = ax1.imshow(
+    _ = ax.imshow(
         spec,
         aspect="auto",
         interpolation="nearest",
@@ -239,11 +249,11 @@ def plot_spectrogram(
         extent=extent,
         origin="lower",
     )
-    ax1.grid(which="major", axis="y", linestyle=":")  # add grid lines
-    ax1.set_xlabel("Time (sec)", size=font_size)
-    ax1.set_ylabel("Frequency (Hz)", size=font_size)
-    ax1.tick_params(labelsize=font_size)
+    ax.grid(which="major", axis="y", linestyle=":")  # add grid lines
+    ax.set_xlabel("Time (sec)", size=font_size, color=foreground_color)
+    ax.set_ylabel("Frequency (Hz)", size=font_size, color=foreground_color)
+    ax.tick_params(labelsize=font_size, colors=foreground_color)
+    for s in ax.spines.values():
+        s.set_color(foreground_color)
 
-    plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-
-    return fig, freqs, times, spec
+    return figure, freqs, times, spec
