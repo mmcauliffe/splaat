@@ -14,3 +14,6 @@ dependencies:
     - panel
     - holoviews
     - pytest
+    - click
+    - rich
+    - rich-click

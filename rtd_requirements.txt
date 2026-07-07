@@ -15,3 +15,6 @@ mock
 myst-parser
 myst-NB
 pydata-sphinx-theme
+click
+rich
+rich-click

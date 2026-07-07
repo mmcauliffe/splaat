@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="zoom-fit-best.svg">resources/icons/magnifying-glass-location-solid.svg</file>
+        <file alias="zoom-out.svg">resources/icons/magnifying-glass-minus-solid.svg</file>
+        <file alias="zoom-in.svg">resources/icons/magnifying-glass-plus-solid.svg</file>
+        <file alias="edit-find.svg">resources/icons/magnifying-glass-solid.svg</file>
+        <file alias="mail-forward.svg">resources/icons/bug-solid.svg</file>
+        <file alias="media-playback-pause.svg">resources/icons/pause-solid.svg</file>
+        <file alias="media-playback-start.svg">resources/icons/play-solid.svg</file>
+        <file alias="edit-redo.svg">resources/icons/redo-solid.svg</file>
+        <file alias="edit-undo.svg">resources/icons/undo-solid.svg</file>
+        <file alias="folder-open.svg">resources/icons/external-link-alt-solid.svg</file>
+    </qresource>
+</RCC>

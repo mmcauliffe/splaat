@@ -15,3 +15,10 @@ dependencies:
     - panel
     - holoviews
     - pytest
+    - click
+    - rich
+    - rich-click
+    - pyside6
+    - qt6-main
+    - qt6-multimedia
+    - pyqtgraph

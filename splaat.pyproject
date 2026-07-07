@@ -1,0 +1,10 @@
+{
+    "files": [
+        "main.py",
+        "splaat/desktop/file_detail.ui",
+        "splaat/desktop/error_dialog.ui",
+        "splaat/desktop/main_window.ui",
+        "splaat/desktop/preferences.ui",
+        "splaat/desktop/resources.qrc"
+    ]
+}

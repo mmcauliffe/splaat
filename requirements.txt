@@ -9,3 +9,9 @@ praatio
 pandas
 panel
 holoviews
+click
+rich
+rich-click
+pyside6
+pyqtgraph
+sqlalchemy
