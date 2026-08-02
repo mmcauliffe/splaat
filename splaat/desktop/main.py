@@ -100,6 +100,7 @@ class FileDetailWindow(QtWidgets.QMainWindow):
         self.ui.playAct.setShortcut(self.settings.value(SplaatSettings.PLAY_KEYBIND))
         self.ui.zoomInAct.setShortcut(self.settings.value(SplaatSettings.ZOOM_IN_KEYBIND))
         self.ui.zoomOutAct.setShortcut(self.settings.value(SplaatSettings.ZOOM_OUT_KEYBIND))
+        self.ui.zoomAllAct.setShortcut(self.settings.value(SplaatSettings.ZOOM_ALL_KEYBIND))
         self.ui.zoomToSelectionAct.setShortcut(
             self.settings.value(SplaatSettings.ZOOM_TO_SELECTION_KEYBIND)
         )
@@ -143,11 +144,22 @@ class FileDetailWindow(QtWidgets.QMainWindow):
         self.file_utterances_model = FileModel(self)
         self.file_selection_model = FileSelectionModel(self.file_utterances_model)
         self.file_utterances_model.set_corpus_model(self.corpus_model)
+        self.file_utterances_model.addCommand.connect(self.update_undo_stack)
+        self.ui.panLeftAct.triggered.connect(self.file_selection_model.pan_left)
+        self.ui.panRightAct.triggered.connect(self.file_selection_model.pan_right)
+        self.ui.zoomInAct.triggered.connect(self.file_selection_model.zoom_in)
+        self.ui.zoomOutAct.triggered.connect(self.file_selection_model.zoom_out)
+        self.ui.zoomToSelectionAct.triggered.connect(self.file_selection_model.zoom_to_selection)
+        self.ui.zoomAllAct.triggered.connect(self.file_selection_model.zoom_all)
         self.ui.centralwidget.set_models(
             self.corpus_model, self.file_utterances_model, self.file_selection_model
         )
         self.media_player.set_models(self.file_selection_model)
         self.file_selection_model.set_current_file(file_id, 0, 10000)
+
+    def update_undo_stack(self, command):
+        self.undo_group.setActiveStack(self.file_undo_stack)
+        self.file_undo_stack.push(command)
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         self.file_utterances_model.clean_up_for_close()
@@ -294,16 +306,30 @@ class MainWindow(QtWidgets.QMainWindow):
     def create_actions(self):
         self.ui.actionOpenFolder.triggered.connect(self.change_corpus)
         self.ui.actionView.triggered.connect(self.show_detail)
+        self.ui.centralwidget.viewEditRequested.connect(self.show_detail)
+        self.ui.actionExport_modified_files.triggered.connect(self.export_files)
+
+    def export_files(self):
+        export_directory = QtWidgets.QFileDialog.getExistingDirectory(
+            parent=self,
+            caption="Select an export directory",
+            dir=self.settings.value(SplaatSettings.DEFAULT_DIRECTORY),
+        )
+        self.settings.setValue(SplaatSettings.DEFAULT_DIRECTORY, os.path.dirname(export_directory))
+        self.corpus_model.export_files(export_directory)
 
     def show_detail(self):
-        selection = self.ui.centralwidget.table_widget.selectedIndexes()
-        rows = {x.row() for x in selection}
+        rows = self.ui.centralwidget.table_widget.selectionModel().selectedRows()
         for r in sorted(rows):
             file_id = self.corpus_model.file_id_at(r)
             file_name = self.corpus_model.file_name_at(r)
             window = FileDetailWindow(self)
             window.setWindowTitle(f"Splaat - {file_name}")
             window.set_models(self.corpus_model, file_id)
+            window.ui.centralwidget.set_search_term(
+                self.ui.centralwidget.search_text_box.query(),
+                self.ui.centralwidget.search_phones_box.query(),
+            )
             window.show()
 
     @property
@@ -415,12 +441,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if self.corpus_model.corpus_name is None:
             self.ui.actionInfo.setEnabled(False)
-            self.ui.actionSearch.setEnabled(False)
+            self.ui.actionExport_modified_files.setEnabled(False)
             self.ui.actionView.setEnabled(False)
             self.ui.actionRemove.setEnabled(False)
         else:
             self.ui.actionInfo.setEnabled(True)
-            self.ui.actionSearch.setEnabled(True)
+            self.ui.actionExport_modified_files.setEnabled(True)
             self.ui.actionView.setEnabled(True)
             self.ui.actionRemove.setEnabled(True)
 
@@ -473,8 +499,6 @@ class OptionsDialog(QtWidgets.QDialog):
         self.ui.setupUi(self)
         self.settings = SplaatSettings()
 
-        self.initial_theme = self.settings.current_theme
-
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
 
         self.ui.fontEdit.set_font(self.settings.font)
@@ -525,9 +549,6 @@ class OptionsDialog(QtWidgets.QDialog):
         self.ui.preemphasisEdit.setText(str(self.settings.value(self.settings.SPEC_PREEMPH)))
         self.ui.maxFrequencyEdit.setValue(self.settings.value(self.settings.SPEC_MAX_FREQ))
 
-        self.ui.audioDeviceEdit.clear()
-        for o in QtMultimedia.QMediaDevices.audioOutputs():
-            self.ui.audioDeviceEdit.addItem(o.description(), userData=o.id())
         self.setWindowTitle("Preferences")
         self.ui.tabWidget.setCurrentIndex(0)
 
@@ -585,7 +606,6 @@ class OptionsDialog(QtWidgets.QDialog):
         )
         self.settings.setValue(self.settings.ENABLE_FADE, self.ui.enableFadeCheckBox.isChecked())
         self.settings.setValue(self.settings.AUTOSAVE, self.ui.autosaveOnExitCheckBox.isChecked())
-        self.settings.setValue(self.settings.AUDIO_DEVICE, self.ui.audioDeviceEdit.currentData())
         self.settings.setValue(self.settings.RESULTS_PER_PAGE, self.ui.resultsPerPageEdit.value())
         self.settings.setValue(
             self.settings.TIME_DIRECTION, self.ui.timeDirectionComboBox.currentText()

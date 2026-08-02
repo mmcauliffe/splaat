@@ -135,7 +135,7 @@ class UpdatePhoneBoundariesCommand(FileCommand):
 
     def update_data(self):
         super().update_data()
-        self.corpus_model.changeCommandFired.emit()
+        self.file_model.changeCommandFired.emit()
 
 
 class DeletePhoneIntervalCommand(FileCommand):
@@ -301,7 +301,7 @@ class DeletePhoneIntervalCommand(FileCommand):
 
     def update_data(self):
         super().update_data()
-        self.corpus_model.changeCommandFired.emit()
+        self.file_model.changeCommandFired.emit()
         self.file_model.phoneTierChanged.emit(self.utterance)
 
 
@@ -319,7 +319,6 @@ class InsertPhoneIntervalCommand(FileCommand):
         self.word_interval_lookup = "word_intervals"
         self.phone_interval_lookup = "phone_intervals"
         self.utterance = utterance
-        self.old_manual_alignments = utterance.manual_alignments
         self.phone_interval = phone_interval
         self.previous_phone_interval = previous_phone_interval
         self.has_previous = previous_phone_interval is not None
@@ -413,8 +412,6 @@ class InsertPhoneIntervalCommand(FileCommand):
             self.phone_interval_lookup,
             sorted(phone_intervals, key=lambda x: x.start),
         )
-        if not self.old_manual_alignments:
-            self.utterance.manual_alignments = True
         session.merge(self.utterance)
 
     def _undo(self, session) -> None:
@@ -452,12 +449,10 @@ class InsertPhoneIntervalCommand(FileCommand):
                 word_intervals.append(wi)
         setattr(self.utterance, self.word_interval_lookup, word_intervals)
         session.merge(self.utterance)
-        if not self.old_manual_alignments:
-            self.utterance.manual_alignments = self.old_manual_alignments
 
     def update_data(self):
         super().update_data()
-        self.corpus_model.changeCommandFired.emit()
+        self.file_model.changeCommandFired.emit()
         self.file_model.phoneTierChanged.emit(self.utterance)
 
 
@@ -490,5 +485,5 @@ class UpdatePhoneIntervalCommand(FileCommand):
 
     def update_data(self):
         super().update_data()
-        self.corpus_model.changeCommandFired.emit()
+        self.file_model.changeCommandFired.emit()
         self.file_model.phoneTierChanged.emit(self.utterance)

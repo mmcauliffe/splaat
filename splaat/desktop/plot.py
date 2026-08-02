@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os.path
+import re
 import typing
 
 import numpy as np
@@ -9,6 +10,7 @@ import pyqtgraph as pg
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from splaat.db import PhoneInterval, Utterance, WordInterval
+from splaat.desktop.models import TextFilterQuery
 from splaat.desktop.settings import SplaatSettings
 from splaat.utils import get_next_primary_key
 
@@ -90,6 +92,8 @@ class SplaatPlot(QtWidgets.QWidget):
         self.top_point = 8
         self.height = self.top_point - self.bottom_point
         self.separator_point = (self.height / 2) + self.bottom_point
+        self.text_search_term = None
+        self.phones_search_term = None
 
         # self.break_line.setZValue(30)
         self.audio_layout = pg.GraphicsLayoutWidget()
@@ -135,6 +139,12 @@ class SplaatPlot(QtWidgets.QWidget):
         layout.setSpacing(0)
         scroll_layout.setSpacing(0)
         self.setLayout(layout)
+
+    def set_search_term(self, text_search_term, phones_search_term):
+        self.text_search_term = text_search_term
+        self.phones_search_term = phones_search_term
+        for v in self.speaker_tiers.values():
+            v.set_search_term(text_search_term, phones_search_term)
 
     def set_models(
         self,
@@ -198,6 +208,7 @@ class SplaatPlot(QtWidgets.QWidget):
             self.file_model,
             self.selection_model,
         )
+        tier.set_search_term(self.text_search_term, self.phones_search_term)
         tier.draggingLine.connect(self.audio_plot.update_drag_line)
         tier.lineDragFinished.connect(self.audio_plot.hide_drag_line)
         tier.receivedWheelEvent.connect(self.audio_plot.wheelEvent)
@@ -733,7 +744,7 @@ class IntervalTier(pg.GraphicsObject):
         self.break_line_color = self.plot_theme.break_line_color
         self.text_color = self.plot_theme.text_color
         self.selected_interval_color = self.plot_theme.selected_interval_color
-        self.highlight_interval_color = self.plot_theme.break_line_color
+        self.highlight_interval_color = self.plot_theme.selected_interval_color
         self.highlight_text_color = self.plot_theme.background_color
 
         self.top_point = top_point
@@ -742,7 +753,7 @@ class IntervalTier(pg.GraphicsObject):
         self.utterance = utterance
         self.lookup = lookup
         self.lines = []
-        self.selected = []
+        self.selected = None
 
         self._boundingRectCache = None
         self._cached_pixel_size = None
@@ -755,8 +766,8 @@ class IntervalTier(pg.GraphicsObject):
         self.border_pen.setCapStyle(QtCore.Qt.PenCapStyle.FlatCap)
         self.text_pen = pg.mkPen(self.text_color)
         self.text_brush = pg.mkBrush(self.text_color)
-        self.highlight_text_pen = pg.mkPen(self.highlight_text_color)
-        self.highlight_text_brush = pg.mkBrush(self.highlight_text_color)
+        self.highlight_text_pen = pg.mkPen(self.plot_theme.error_color)
+        self.highlight_text_brush = pg.mkBrush(self.plot_theme.error_color)
         self.search_term = None
         self.search_regex = None
         self.update_intervals(self.utterance)
@@ -812,7 +823,6 @@ class IntervalTier(pg.GraphicsObject):
         self.array = pg.Qt.internals.PrimitiveArray(QtCore.QRectF, 4)
         self.selected_array = pg.Qt.internals.PrimitiveArray(QtCore.QRectF, 4)
         self.array.resize(len(self.intervals))
-        self.selected = []
         memory = self.array.ndarray()
 
         fm = QtGui.QFontMetrics(self.plot_text_font)
@@ -851,10 +861,31 @@ class IntervalTier(pg.GraphicsObject):
                 index = np.searchsorted(memory[:, 0], time) - 1
                 interval = self.intervals[index]
                 self.selection_model.select_audio(interval.start, interval.end)
+                if self.selected == interval:
+                    self.selected = None
+                self.selected = interval
+                self.highlightRequested.emit(self.selected)
+                self.update()
                 e.accept()
                 return
 
         return super().mousePressEvent(e)
+
+    def reset_selection(self, obj):
+        self.selected = None
+        if hasattr(obj, "start"):
+            for interval in self.intervals:
+                if interval.start > obj.start:
+                    break
+                if interval.start == obj.start and interval.end == obj.end:
+                    self.selected = interval
+        self.update()
+
+    def set_search_term(self, search_term: typing.Optional[TextFilterQuery]):
+        self.search_term = search_term
+        self.search_regex = None
+        if self.search_term is not None and self.search_term.text:
+            self.search_regex = re.compile(self.search_term.generate_expression())
 
     def paint(self, painter, *args):
         vb = self.getViewBox()
@@ -867,11 +898,16 @@ class IntervalTier(pg.GraphicsObject):
         painter.restore()
         total_time = self.selection_model.max_time - self.selection_model.min_time
         if self.selected:
-            selected_inst = self.selected_array.instances()
             painter.save()
-            painter.setPen(self.highlight_text_pen)
-            painter.setBrush(pg.mkBrush(self.highlight_interval_color))
-            painter.drawRects(selected_inst)
+            painter.setPen(self.border_pen)
+            painter.setBrush(pg.mkBrush(self.selected_interval_color))
+            selected_rect = QtCore.QRectF(
+                self.selected.start,
+                self.bottom_point,
+                self.selected.end - self.selected.start,
+                abs(self.top_point - self.bottom_point),
+            )
+            painter.drawRect(selected_rect)
             painter.restore()
         for i, interval in enumerate(self.intervals):
             r = inst[i]
@@ -887,6 +923,9 @@ class IntervalTier(pg.GraphicsObject):
             painter.setRenderHint(painter.RenderHint.Antialiasing, True)
             text_pen = self.text_pen
             text_brush = self.text_brush
+            if self.search_regex is not None and self.search_regex.search(interval.label):
+                text_pen = self.highlight_text_pen
+                text_brush = self.highlight_text_brush
             painter.setPen(text_pen)
             painter.setBrush(text_brush)
             painter.translate(x, (self.top_point + self.bottom_point) / 2)
@@ -1233,6 +1272,12 @@ class UtteranceRegion(SplaatRegion):
             top_point=tier_top_point,
             bottom_point=tier_bottom_point,
         )
+        self.phone_interval_tier.highlightRequested.connect(
+            self.word_interval_tier.reset_selection
+        )
+        self.word_interval_tier.highlightRequested.connect(
+            self.phone_interval_tier.reset_selection
+        )
         self.phone_interval_tier.draggingLine.connect(self.draggingLine.emit)
         self.phone_interval_tier.lineDragFinished.connect(self.lineDragFinished.emit)
         self.phone_interval_tier.phoneBoundaryChanged.connect(self.change_phone_boundaries)
@@ -1242,7 +1287,15 @@ class UtteranceRegion(SplaatRegion):
         self.phoneTiersChanged.connect(self.phone_interval_tier.update_intervals)
 
         self.selection_model.viewChanged.connect(self.update_view_times)
+        self.selection_model.selectionAudioChanged.connect(self.word_interval_tier.reset_selection)
+        self.selection_model.selectionAudioChanged.connect(
+            self.phone_interval_tier.reset_selection
+        )
         self.show()
+
+    def set_search_term(self, text_search_term, phones_search_term):
+        self.word_interval_tier.set_search_term(text_search_term)
+        self.phone_interval_tier.set_search_term(phones_search_term)
 
     def update_snap_mode(self, snap_mode):
         self.snap_mode = snap_mode
@@ -1283,52 +1336,6 @@ class UtteranceRegion(SplaatRegion):
             line.setMovable(m)
         self.movable = False
         self.setAcceptHoverEvents(False)
-
-    def select_self(self, deselect=False, reset=True):
-        self.setSelected(not deselect)
-        self.selectRequested.emit(self.item.id, deselect, reset)
-
-    def mouseDoubleClickEvent(self, ev: QtGui.QMouseEvent):
-        if ev.button() != QtCore.Qt.MouseButton.LeftButton:
-            ev.ignore()
-            return
-        deselect = False
-        reset = True
-        if ev.modifiers() in [
-            QtCore.Qt.KeyboardModifier.ControlModifier,
-            QtCore.Qt.KeyboardModifier.ShiftModifier,
-        ]:
-            reset = False
-            if self.selected:
-                deselect = True
-                self.selected = False
-            else:
-                self.selected = True
-        else:
-            self.selected = True
-        self.select_self(deselect=deselect, reset=reset)
-        ev.accept()
-
-    def mouseClickEvent(self, ev: QtGui.QMouseEvent):
-        if ev.button() != QtCore.Qt.MouseButton.LeftButton:
-            ev.ignore()
-            return
-        deselect = False
-        reset = True
-        if ev.modifiers() in [
-            ev.modifiers().ControlModifier,
-            ev.modifiers().ShiftModifier,
-        ]:
-            reset = False
-            if self.selected:
-                deselect = True
-                self.selected = False
-            else:
-                self.selected = True
-        else:
-            self.selected = True
-        self.select_self(deselect=deselect, reset=reset)
-        ev.accept()
 
     def update_view_times(self):
         self.lines[0].view_min = self.selection_model.plot_min
@@ -1432,7 +1439,7 @@ class UtteranceRegion(SplaatRegion):
         next_pk = get_next_primary_key(self.corpus_model.session, PhoneInterval)
         phone_interval = PhoneInterval(
             id=next_pk,
-            phone=self.corpus_model.phones["sil"],
+            phone="sil",
             start=start,
             end=end,
             word_interval=word_interval,
@@ -1875,6 +1882,8 @@ class SpeakerTier(pg.GraphicsObject):
         self.picture = QtGui.QPicture()
         self.has_visible_words = False
         self.has_selected_words = False
+        self.text_search_term = None
+        self.phones_search_term = None
         self.rect = QtCore.QRectF(
             left=self.selection_model.plot_min,
             riht=self.selection_model.plot_max,
@@ -1976,6 +1985,7 @@ class SpeakerTier(pg.GraphicsObject):
                 bottom_point=self.bottom_point,
                 top_point=self.top_point,
             )
+            reg.set_search_term(self.text_search_term, self.phones_search_term)
             reg.sigRegionChanged.connect(self.check_utterance_bounds)
             reg.sigRegionChangeFinished.connect(self.update_utterance)
             reg.draggingLine.connect(self.draggingLine.emit)
@@ -2075,8 +2085,13 @@ class SpeakerTier(pg.GraphicsObject):
                     break
                 prev_r = r
 
-        reg.select_self()
         reg.update()
+
+    def set_search_term(self, text_search_term, phones_search_term):
+        self.text_search_term = text_search_term
+        self.phones_search_term = phones_search_term
+        for utt in self.visible_utterances.values():
+            utt.set_search_term(text_search_term, phones_search_term)
 
     def update_utterance(self):
         reg = self.sender()

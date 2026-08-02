@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import re
 import typing
+from dataclasses import dataclass
 from threading import Lock
 
 import numpy as np
@@ -14,6 +16,49 @@ from splaat.desktop import undo, workers
 from splaat.desktop.settings import SplaatSettings
 
 logger = logging.getLogger("splaat")
+
+
+@dataclass(slots=True)
+class TextFilterQuery:
+    text: str
+    regex: bool = False
+    word: bool = False
+    case_sensitive: bool = False
+    graphemes: typing.Collection[str] = None
+
+    @property
+    def search_text(self):
+        if not self.case_sensitive:
+            return self.text.lower()
+        return self.text
+
+    def generate_expression(self, posix=False):
+        word_symbols = r"\w"
+        if self.graphemes:
+            dash_prefix = "-" if "-" in self.graphemes else ""
+            graphemes = "".join([x for x in self.graphemes if x != "-"])
+            word_symbols = rf"[{dash_prefix}\w{graphemes}]"
+        text = self.text
+        if not self.case_sensitive:
+            text = text.lower()
+        if not text:
+            return text
+        if not self.regex:
+            text = re.escape(text)
+        word_break_set = r"\b"
+        if self.word:
+            if not text.startswith(word_break_set):
+                text = word_break_set + text
+            if not text.endswith(word_break_set):
+                text += word_break_set
+        if posix:
+            if text.startswith(r"\b"):
+                text = rf"((?<!{word_symbols})|(?<=^))" + text[2:]
+            if text.endswith(r"\b"):
+                text = text[:-2] + rf"((?!{word_symbols})|(?=$))"
+        if not self.case_sensitive:
+            text = "(?i)" + text
+        return text
 
 
 class TableModel(QtCore.QAbstractTableModel):
@@ -231,8 +276,6 @@ class FileModel(QtCore.QAbstractListModel):
         following_interval: PhoneInterval,
         time_point: float,
     ):
-        if not self.corpus_model.editable:
-            return
         self.addCommand.emit(
             undo.DeletePhoneIntervalCommand(
                 utterance, phone_interval, previous_interval, following_interval, time_point, self
@@ -515,11 +558,30 @@ class FileSelectionModel(QtCore.QItemSelectionModel):
             return
         self.set_view_times(start, end)
 
+    @property
+    def step_size(self):
+        return (self.max_time - self.min_time) * 0.5
+
+    def pan_right(self):
+        new_begin = self.min_time + self.step_size
+        self.update_from_slider(new_begin)
+
+    def pan_left(self):
+        new_begin = self.min_time - self.step_size
+        self.update_from_slider(new_begin)
+
+    def zoom_all(self):
+        self.set_view_times(0, self.model().file.duration)
+
     def update_from_slider(self, value):
         if not self.max_time:
             return
-        cur_window = self.max_time - self.min_time
-        self.set_view_times(value, value + cur_window)
+        if value < 0:
+            value = 0
+        window_size = self.max_time - self.min_time
+        if value + window_size > self.model().file.duration:
+            value = self.model().file.duration - window_size
+        self.set_view_times(value, value + window_size)
 
     def visible_utterances(self) -> typing.List[Utterance]:
         file_utterances = []
@@ -589,7 +651,7 @@ class CorpusModel(TableModel):
     corpusLoaded = QtCore.Signal()
     corpusLoading = QtCore.Signal()
     textFilterChanged = QtCore.Signal()
-    phoneTFilterChanged = QtCore.Signal()
+    phoneFilterChanged = QtCore.Signal()
 
     def __init__(self, parent=None):
         header = [
@@ -603,8 +665,11 @@ class CorpusModel(TableModel):
         self.file_column = header.index("File")
         self.duration_column = header.index("Duration")
         self.text_column = header.index("Text")
+        self.default_header_sizes = ["00000000", "0000000000000000", "000000", "00000000"]
         self.sort_index = None
         self.sort_order = None
+        self.text_filter = None
+        self.phone_filter = None
         self.reversed_indices = {}
         self._indices = []
         self._file_indices = []
@@ -618,6 +683,11 @@ class CorpusModel(TableModel):
         self.phones = []
         self.words = []
         self.edit_lock = Lock()
+
+    def export_files(self, export_directory):
+        modified_files = self.session.query(File).filter(File.modified == True)  # noqa
+        for f in modified_files:
+            f.save(export_directory)
 
     def set_file_modified(self, file_id: typing.Union[int, typing.List[int]]):
         if isinstance(file_id, int):
@@ -734,6 +804,8 @@ class CorpusModel(TableModel):
     @property
     def query_kwargs(self) -> typing.Dict[str, typing.Any]:
         kwargs = {
+            "text_filter": self.text_filter,
+            "phone_filter": self.phone_filter,
             "limit": self.limit,
             "current_offset": self.current_offset,
         }
@@ -741,6 +813,22 @@ class CorpusModel(TableModel):
             kwargs["sort_index"] = self.sort_index
             kwargs["sort_desc"] = self.sort_order == QtCore.Qt.SortOrder.DescendingOrder
         return kwargs
+
+    def search_text(
+        self,
+        text_filter: TextFilterQuery,
+    ):
+        self.text_filter = text_filter
+        self.textFilterChanged.emit()
+        self.refresh_files()
+
+    def search_phones(
+        self,
+        phone_filter: TextFilterQuery,
+    ):
+        self.phone_filter = phone_filter
+        self.phoneFilterChanged.emit()
+        self.refresh_files()
 
     def finalize_result_count(self, result_count):
         if not isinstance(result_count, int):

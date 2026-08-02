@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 import typing
 
 from PySide6 import QtCore, QtGui, QtMultimedia, QtWidgets
 
+import splaat.desktop.resources_rc  # noqa
+from splaat.desktop.models import TextFilterQuery
 from splaat.desktop.plot import SplaatPlot
 from splaat.desktop.settings import SplaatSettings
 
@@ -32,13 +35,8 @@ class MediaPlayer(QtMultimedia.QMediaPlayer):  # pragma: no cover
         self.positionChanged.connect(self.checkStop)
         # self.positionChanged.connect(self.positionDebug)
         self.errorOccurred.connect(self.handle_error)
-        o = None
 
-        for o in QtMultimedia.QMediaDevices.audioOutputs():
-            if o.id() == self.settings.value(self.settings.AUDIO_DEVICE):
-                break
-        self._audio_output = QtMultimedia.QAudioOutput(o)
-        self._audio_output.setDevice(self.devices.defaultAudioOutput())
+        self._audio_output = QtMultimedia.QAudioOutput(self.devices.defaultAudioOutput())
         self.setAudioOutput(self._audio_output)
         self.playbackStateChanged.connect(self.reset_position)
         self.fade_in_anim = QtCore.QPropertyAnimation(self._audio_output, b"volume")
@@ -111,11 +109,7 @@ class MediaPlayer(QtMultimedia.QMediaPlayer):  # pragma: no cover
 
     def refresh_settings(self):
         self.settings.sync()
-        o = None
-        for o in QtMultimedia.QMediaDevices.audioOutputs():
-            if o.id() == self.settings.value(self.settings.AUDIO_DEVICE):
-                break
-        self._audio_output.setDevice(o)
+        self.update_audio_device()
 
     def set_models(self, selection_model: typing.Optional[FileSelectionModel]):
         if selection_model is None:
@@ -331,11 +325,18 @@ class SplaatTableView(BaseTableView):
         super().refresh_settings()
         fm = QtGui.QFontMetrics(self.settings.big_font)
         minimum = 100
+        default_sizes = getattr(
+            self.model(),
+            "default_header_sizes",
+            [0 for i in range(self.horizontalHeader().count())],
+        )
         for i in range(self.horizontalHeader().count()):
             text = self.model().headerData(
                 i, QtCore.Qt.Orientation.Horizontal, QtCore.Qt.ItemDataRole.DisplayRole
             )
-
+            default_size = default_sizes[i]
+            if len(default_size):
+                text = default_size
             width = fm.boundingRect(text).width() + (3 * self.settings.sort_indicator_padding)
             if width < minimum:
                 minimum = width
@@ -344,12 +345,25 @@ class SplaatTableView(BaseTableView):
 
 
 class FileListTable(SplaatTableView):
+    viewEditRequested = QtCore.Signal(int)
+
     def __init__(self, *args):
         super().__init__(*args)
         self.doubleClicked.connect(self.view_file)
+        self.view_file_action = QtGui.QAction("View and Edit", self)
+        self.view_file_action.triggered.connect(self.view_file)
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.generate_context_menu)
+
+    def generate_context_menu(self, location):
+        menu = QtWidgets.QMenu()
+        menu.addAction(self.view_file_action)
+        menu.exec_(self.mapToGlobal(location))
 
     def view_file(self):
-        pass
+        rows = self.selectionModel().selectedRows()
+        if rows:
+            self.viewEditRequested.emit(rows[0])
 
 
 class PaginationWidget(QtWidgets.QToolBar):
@@ -433,8 +447,192 @@ class PaginationWidget(QtWidgets.QToolBar):
         self.pageRequested.emit()
 
 
+class InternalToolButtonEdit(QtWidgets.QLineEdit):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        self.tool_bar = QtWidgets.QToolBar(self)
+        self._internal_layout.insertWidget(self._internal_layout.count(), self.tool_bar)
+        self.tool_bar.setFocusProxy(self)
+
+    @property
+    def _internal_layout(self):
+        if not hasattr(self, "_internal_layout_"):
+            self._internal_layout_ = QtWidgets.QHBoxLayout(self)
+            self._internal_layout_.addStretch()
+        self._internal_layout_.setContentsMargins(1, 1, 1, 1)
+        self._internal_layout_.setSpacing(0)
+        return self._internal_layout_
+
+    def setError(self):
+        if not self.property("error"):
+            self.setProperty("error", True)
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.update()
+
+    def resetError(self):
+        if self.property("error"):
+            self.setProperty("error", False)
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.update()
+
+    def _fix_cursor_position(self):
+        self.setTextMargins(0, 0, self.tool_bar.geometry().width(), 0)
+
+    def add_internal_action(self, action, name=None):
+        self.tool_bar.addAction(action)
+        w = self.tool_bar.widgetForAction(action)
+        if name is not None:
+            w.setObjectName(name)
+        w.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        w.setFocusProxy(self)
+        self._fix_cursor_position()
+
+
+class ClearableField(InternalToolButtonEdit):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        clear_icon = QtGui.QIcon.fromTheme("edit-clear")
+        self.clear_action = QtGui.QAction(icon=clear_icon, parent=self)
+        self.clear_action.triggered.connect(self.clear)
+        self.clear_action.setVisible(False)
+        self.textChanged.connect(self.check_contents)
+        self.add_internal_action(self.clear_action, "clear_field")
+
+    def clear(self) -> None:
+        super().clear()
+        self.returnPressed.emit()
+
+    def add_button(self, button):
+        self._internal_layout.insertWidget(self._internal_layout.count(), button)
+        button.setFocusProxy(self)
+
+    def check_contents(self):
+        self.resetError()
+        if super().text():
+            self.clear_action.setVisible(True)
+        else:
+            self.clear_action.setVisible(False)
+
+
+class ReplaceBox(ClearableField):
+    replaceAllActivated = QtCore.Signal(object)
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.returnPressed.connect(self.activate)
+        self.setObjectName("replace_box")
+
+    def lock(self):
+        self.setDisabled(True)
+
+    def unlock(self):
+        self.setEnabled(True)
+
+    def activate(self):
+        if not self.isEnabled():
+            return
+        self.replaceAllActivated.emit(self.text())
+
+
+class SearchBox(ClearableField):
+    searchActivated = QtCore.Signal(object)
+    validationError = QtCore.Signal(object)
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.returnPressed.connect(self.activate)
+        self.setObjectName("search_box")
+
+        self.clear_action.triggered.connect(self.returnPressed.emit)
+
+        regex_icon = QtGui.QIcon()
+        word_icon = QtGui.QIcon()
+        case_icon = QtGui.QIcon()
+        if QtGui.QGuiApplication.styleHints().colorScheme() == QtCore.Qt.ColorScheme.Dark:
+            regex_icon.addFile(
+                ":icons/dark/actions/edit-regex.svg",
+                mode=QtGui.QIcon.Mode.Normal,
+                state=QtGui.QIcon.State.Off,
+            )
+            word_icon.addFile(
+                ":icons/dark/actions/edit-word.svg",
+                mode=QtGui.QIcon.Mode.Normal,
+                state=QtGui.QIcon.State.Off,
+            )
+            case_icon.addFile(
+                ":icons/dark/actions/edit-case.svg",
+                mode=QtGui.QIcon.Mode.Normal,
+                state=QtGui.QIcon.State.Off,
+            )
+        else:
+            regex_icon.addFile(
+                ":icons/light/actions/edit-regex.svg",
+                mode=QtGui.QIcon.Mode.Normal,
+                state=QtGui.QIcon.State.Off,
+            )
+            word_icon.addFile(
+                ":icons/light/actions/edit-word.svg",
+                mode=QtGui.QIcon.Mode.Normal,
+                state=QtGui.QIcon.State.Off,
+            )
+            case_icon.addFile(
+                ":icons/light/actions/edit-case.svg",
+                mode=QtGui.QIcon.Mode.Normal,
+                state=QtGui.QIcon.State.Off,
+            )
+
+        self.regex_action = QtGui.QAction(icon=regex_icon, parent=self)
+        self.regex_action.setCheckable(True)
+
+        self.word_action = QtGui.QAction(icon=word_icon, parent=self)
+        self.word_action.setCheckable(True)
+
+        self.case_action = QtGui.QAction(icon=case_icon, parent=self)
+        self.case_action.setCheckable(True)
+
+        self.add_internal_action(self.regex_action, "regex_search_field")
+        self.add_internal_action(self.word_action, "word_search_field")
+        self.add_internal_action(self.case_action, "case_search_field")
+
+    def activate(self):
+        if self.regex_action.isChecked():
+            try:
+                _ = re.compile(self.text())
+            except Exception:
+                self.setError()
+                self.validationError.emit("Search regex not valid")
+                return
+        self.searchActivated.emit(self.query())
+
+    def setQuery(self, query: TextFilterQuery):
+        self.setText(query.text)
+        with QtCore.QSignalBlocker(self.regex_action) as _, QtCore.QSignalBlocker(
+            self.word_action
+        ) as _:
+            self.regex_action.setChecked(query.regex)
+            self.word_action.setChecked(query.word)
+            self.case_action.setChecked(query.case_sensitive)
+            self.activate()
+
+    def query(self) -> typing.Optional[TextFilterQuery]:
+        if not super().text():
+            return None
+        filter = TextFilterQuery(
+            super().text(),
+            self.regex_action.isChecked(),
+            self.word_action.isChecked(),
+            self.case_action.isChecked(),
+        )
+        return filter
+
+
 class FileListWidget(QtWidgets.QWidget):  # pragma: no cover
     fileChanged = QtCore.Signal(object)
+    viewEditRequested = QtCore.Signal(object)
 
     def __init__(self, *args):
         super(FileListWidget, self).__init__(*args)
@@ -443,9 +641,19 @@ class FileListWidget(QtWidgets.QWidget):  # pragma: no cover
         self.corpus_model: typing.Optional[CorpusModel] = None
         layout = QtWidgets.QVBoxLayout()
 
-        self.cached_query = None
+        self.search_text_box = SearchBox(self)
+        self.search_phones_box = SearchBox(self)
+        search_layout = QtWidgets.QFormLayout()
+        self.search_widget = QtWidgets.QWidget()
+        search_layout.addRow("Text", self.search_text_box)
+        search_layout.addRow("Phones", self.search_phones_box)
+        self.search_widget.setLayout(search_layout)
+        layout.addWidget(self.search_widget)
+        self.search_text_box.searchActivated.connect(self.search_text)
+        self.search_phones_box.searchActivated.connect(self.search_phones)
 
         self.table_widget = FileListTable(self)
+        self.table_widget.viewEditRequested.connect(self.viewEditRequested.emit)
         layout.addWidget(self.table_widget)
 
         self.pagination_toolbar = PaginationWidget()
@@ -453,6 +661,22 @@ class FileListWidget(QtWidgets.QWidget):  # pragma: no cover
         layout.addWidget(self.pagination_toolbar)
         self.setLayout(layout)
         self.refresh_settings()
+
+    def search_text(self):
+        query = self.search_text_box.query()
+        self.pagination_toolbar.reset()
+        self.corpus_model.current_offset = 0
+        self.corpus_model.search_text(
+            query,
+        )
+
+    def search_phones(self):
+        query = self.search_phones_box.query()
+        self.pagination_toolbar.reset()
+        self.corpus_model.current_offset = 0
+        self.corpus_model.search_phones(
+            query,
+        )
 
     def query_started(self):
         self.table_widget.setVisible(True)
@@ -495,25 +719,12 @@ class DetailView(QtWidgets.QWidget):
         self.plot_widget = SplaatPlot(self)
 
         layout.addWidget(self.plot_widget)
-        self.scroll_bar_wrapper = QtWidgets.QHBoxLayout()
-        self.pan_left_button = QtWidgets.QToolButton(self)
-        self.pan_left_button.setObjectName("pan_left_button")
-        self.scroll_bar_wrapper.addWidget(self.pan_left_button)
-        self.pan_right_button = QtWidgets.QToolButton(self)
-        self.pan_right_button.setObjectName("pan_right_button")
-        self.pan_left_button.setIconSize(QtCore.QSize(25, 25))
-        self.pan_right_button.setIconSize(QtCore.QSize(25, 25))
 
         self.scroll_bar = QtWidgets.QScrollBar(QtCore.Qt.Orientation.Horizontal, self)
-        self.scroll_bar.setObjectName("time_scroll_bar")
 
         # self.scroll_bar.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         self.scroll_bar.valueChanged.connect(self.update_from_slider)
-        scroll_bar_layout = QtWidgets.QVBoxLayout()
-        scroll_bar_layout.addWidget(self.scroll_bar, 1)
-        self.scroll_bar_wrapper.addLayout(scroll_bar_layout)
-        self.scroll_bar_wrapper.addWidget(self.pan_right_button)
-        layout.addLayout(self.scroll_bar_wrapper)
+        layout.addWidget(self.scroll_bar)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
         self.show_all_speakers = False
@@ -538,30 +749,28 @@ class DetailView(QtWidgets.QWidget):
         with QtCore.QSignalBlocker(self.scroll_bar):
             if self.selection_model.model().file is None or self.selection_model.min_time is None:
                 return
-            if (
-                self.selection_model.min_time == 0
-                and self.selection_model.max_time == self.selection_model.model().file.duration
-            ):
-                self.scroll_bar.setPageStep(10)
-                self.scroll_bar.setEnabled(False)
-                self.pan_left_button.setEnabled(False)
-                self.pan_right_button.setEnabled(False)
-                self.scroll_bar.setMaximum(0)
-                return
             duration_ms = int(self.selection_model.model().file.duration * 1000)
             begin = self.selection_model.min_time * 1000
             end = self.selection_model.max_time * 1000
             window_size_ms = int(end - begin)
+            self.scroll_bar.setMinimum(0)
             self.scroll_bar.setEnabled(True)
-            self.pan_left_button.setEnabled(True)
-            self.pan_right_button.setEnabled(True)
-            self.scroll_bar.setPageStep(int(window_size_ms))
+            self.scroll_bar.setPageStep(window_size_ms)
             self.scroll_bar.setSingleStep(int(window_size_ms * 0.5))
             self.scroll_bar.setMaximum(duration_ms - window_size_ms)
             self.scroll_bar.setValue(begin)
 
+    def set_search_term(self, text_search_term, phones_search_term):
+        self.plot_widget.set_search_term(text_search_term, phones_search_term)
+
     def update_from_slider(self, value: int):
-        self.selection_model.update_from_slider(value / 1000)
+        new_begin = value / 1000
+        window_size = self.scroll_bar.pageStep() / 1000
+        if new_begin + window_size > self.selection_model.model().file.duration:
+            new_begin = self.selection_model.model().file.duration - window_size
+        elif new_begin < 0:
+            new_begin = 0
+        self.selection_model.update_from_slider(new_begin)
 
     def pan_left(self):
         self.scroll_bar.triggerAction(self.scroll_bar.SliderAction.SliderSingleStepSub)

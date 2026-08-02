@@ -3,7 +3,7 @@ import os.path
 import pathlib
 from typing import Any, Optional
 
-from PySide6 import QtCore, QtGui
+from PySide6 import QtCore, QtGui, QtMultimedia
 
 from splaat.utils import get_temporary_directory
 
@@ -40,7 +40,6 @@ class SplaatSettings(QtCore.QSettings):
     AUTOLOAD = "splaat/autoload"
 
     VOLUME = "splaat/audio/volume"
-    AUDIO_DEVICE = "splaat/audio/device"
     ENABLE_FADE = "splaat/enable_fade"
 
     GEOMETRY = "splaat/MainWindow/geometry"
@@ -72,6 +71,7 @@ class SplaatSettings(QtCore.QSettings):
     MERGE_KEYBIND = "splaat/keybinds/merge"
     ZOOM_IN_KEYBIND = "splaat/keybinds/zoom_in"
     ZOOM_OUT_KEYBIND = "splaat/keybinds/zoom_out"
+    ZOOM_ALL_KEYBIND = "splaat/keybinds/zoom_all"
     ZOOM_TO_SELECTION_KEYBIND = "splaat/keybinds/zoom_to_selection"
     PAN_LEFT_KEYBIND = "splaat/keybinds/pan_left"
     PAN_RIGHT_KEYBIND = "splaat/keybinds/pan_right"
@@ -106,7 +106,6 @@ class SplaatSettings(QtCore.QSettings):
             SplaatSettings.AUTOSAVE: False,
             SplaatSettings.AUTOLOAD: False,
             SplaatSettings.VOLUME: 100,
-            SplaatSettings.AUDIO_DEVICE: None,
             SplaatSettings.ENABLE_FADE: True,
             SplaatSettings.GEOMETRY: None,
             SplaatSettings.DETAIL_GEOMETRY: None,
@@ -122,6 +121,7 @@ class SplaatSettings(QtCore.QSettings):
             SplaatSettings.ZOOM_IN_KEYBIND: "Ctrl+I",
             SplaatSettings.ZOOM_OUT_KEYBIND: "Ctrl+O",
             SplaatSettings.ZOOM_TO_SELECTION_KEYBIND: "Ctrl+N",
+            SplaatSettings.ZOOM_ALL_KEYBIND: "Ctrl+A",
             SplaatSettings.PAN_LEFT_KEYBIND: "Left",
             SplaatSettings.PAN_RIGHT_KEYBIND: "Right",
             SplaatSettings.UNDO_KEYBIND: "Ctrl+Z",
@@ -196,7 +196,6 @@ class SplaatSettings(QtCore.QSettings):
             SplaatSettings.DETAIL_GEOMETRY,
             SplaatSettings.WINDOW_STATE,
             SplaatSettings.DETAIL_WINDOW_STATE,
-            SplaatSettings.AUDIO_DEVICE,
         }:
             value = super(SplaatSettings, self).value(arg__1, self.default_values[arg__1])
         else:

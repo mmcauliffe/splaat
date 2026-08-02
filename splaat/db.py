@@ -98,9 +98,7 @@ class File(SqlBase):
         """Sample rate of the associated sound file"""
         return self.sound_file.sample_rate
 
-    def save(
-        self,
-    ) -> None:
+    def save(self, export_root_directory=None, output_format="short_textgrid") -> None:
         """
         Output File to TextGrid.
         """
@@ -131,7 +129,7 @@ class File(SqlBase):
                     Interval(
                         start=pi.start,
                         end=min(pi.end, max_time),
-                        label=pi.phone.phone,
+                        label=pi.phone,
                     )
                 )
             word_intervals = (
@@ -147,9 +145,15 @@ class File(SqlBase):
                 )
         for t in tiers.values():
             tg.addTier(t)
-        tg.save(
-            self.text_file.text_file_path, includeBlankSpaces=True, format=self.text_file.file_type
-        )
+        if export_root_directory is None:
+            export_path = self.text_file.text_file_path
+        else:
+            ext = ".TextGrid"
+            if output_format == "json":
+                ext = ".json"
+            export_path = Path(export_root_directory).joinpath(self.relative_path, self.name + ext)
+            export_path.parent.mkdir(exist_ok=True, parents=True)
+        tg.save(export_path, includeBlankSpaces=True, format=output_format)
 
 
 class SoundFile(SqlBase):

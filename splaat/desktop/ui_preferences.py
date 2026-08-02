@@ -80,7 +80,7 @@ class Ui_PreferencesDialog(object):
         self.scrollArea_3.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName("scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 682, 352))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 682, 199))
         self.formLayout = QFormLayout(self.scrollAreaWidgetContents_3)
         self.formLayout.setObjectName("formLayout")
         self.label_12 = QLabel(self.scrollAreaWidgetContents_3)
@@ -117,48 +117,38 @@ class Ui_PreferencesDialog(object):
             2, QFormLayout.ItemRole.FieldRole, self.autoloadLastUsedCorpusCheckBox
         )
 
-        self.audioDeviceLabel = QLabel(self.scrollAreaWidgetContents_3)
-        self.audioDeviceLabel.setObjectName("audioDeviceLabel")
-
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.audioDeviceLabel)
-
-        self.audioDeviceEdit = QComboBox(self.scrollAreaWidgetContents_3)
-        self.audioDeviceEdit.setObjectName("audioDeviceEdit")
-
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.audioDeviceEdit)
-
         self.fadeInLabel = QLabel(self.scrollAreaWidgetContents_3)
         self.fadeInLabel.setObjectName("fadeInLabel")
 
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.LabelRole, self.fadeInLabel)
+        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.fadeInLabel)
 
         self.enableFadeCheckBox = QCheckBox(self.scrollAreaWidgetContents_3)
         self.enableFadeCheckBox.setObjectName("enableFadeCheckBox")
 
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.enableFadeCheckBox)
+        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.enableFadeCheckBox)
+
+        self.resultsPerPageLabel = QLabel(self.scrollAreaWidgetContents_3)
+        self.resultsPerPageLabel.setObjectName("resultsPerPageLabel")
+
+        self.formLayout.setWidget(4, QFormLayout.ItemRole.LabelRole, self.resultsPerPageLabel)
 
         self.resultsPerPageEdit = QSpinBox(self.scrollAreaWidgetContents_3)
         self.resultsPerPageEdit.setObjectName("resultsPerPageEdit")
         self.resultsPerPageEdit.setMaximum(1000)
 
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.resultsPerPageEdit)
-
-        self.resultsPerPageLabel = QLabel(self.scrollAreaWidgetContents_3)
-        self.resultsPerPageLabel.setObjectName("resultsPerPageLabel")
-
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.LabelRole, self.resultsPerPageLabel)
+        self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.resultsPerPageEdit)
 
         self.timeDirectionLabel = QLabel(self.scrollAreaWidgetContents_3)
         self.timeDirectionLabel.setObjectName("timeDirectionLabel")
 
-        self.formLayout.setWidget(6, QFormLayout.ItemRole.LabelRole, self.timeDirectionLabel)
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.LabelRole, self.timeDirectionLabel)
 
         self.timeDirectionComboBox = QComboBox(self.scrollAreaWidgetContents_3)
         self.timeDirectionComboBox.addItem("")
         self.timeDirectionComboBox.addItem("")
         self.timeDirectionComboBox.setObjectName("timeDirectionComboBox")
 
-        self.formLayout.setWidget(6, QFormLayout.ItemRole.FieldRole, self.timeDirectionComboBox)
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.timeDirectionComboBox)
 
         self.scrollArea_3.setWidget(self.scrollAreaWidgetContents_3)
 
@@ -416,9 +406,6 @@ class Ui_PreferencesDialog(object):
         )
         self.autoloadLastUsedCorpusLabel.setText(
             QCoreApplication.translate("PreferencesDialog", "Autoload", None)
-        )
-        self.audioDeviceLabel.setText(
-            QCoreApplication.translate("PreferencesDialog", "Audio device", None)
         )
         self.fadeInLabel.setText(
             QCoreApplication.translate("PreferencesDialog", "Fade in audio on play", None)

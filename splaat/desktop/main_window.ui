@@ -101,8 +101,15 @@
     </property>
     <addaction name="actionAnalyze_alignments"/>
    </widget>
+   <widget class="QMenu" name="menuSave">
+    <property name="title">
+     <string>Save</string>
+    </property>
+    <addaction name="actionExport_modified_files"/>
+   </widget>
    <addaction name="menuSplaat"/>
    <addaction name="menuOpen"/>
+   <addaction name="menuSave"/>
    <addaction name="menuAnalyze"/>
    <addaction name="menuHelp"/>
   </widget>
@@ -125,7 +132,6 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionSearch"/>
    <addaction name="actionView"/>
    <addaction name="actionInfo"/>
    <addaction name="separator"/>
@@ -178,14 +184,6 @@
     <string>Analyze alignments</string>
    </property>
   </action>
-  <action name="actionSearch">
-   <property name="text">
-    <string>Search</string>
-   </property>
-   <property name="menuRole">
-    <enum>QAction::NoRole</enum>
-   </property>
-  </action>
   <action name="actionInfo">
    <property name="text">
     <string>Info</string>
@@ -200,6 +198,11 @@
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionExport_modified_files">
+   <property name="text">
+    <string>Export modified files...</string>
    </property>
   </action>
  </widget>

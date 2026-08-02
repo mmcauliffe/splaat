@@ -1,14 +1,47 @@
 <RCC>
-    <qresource prefix="/">
-        <file alias="zoom-fit-best.svg">resources/icons/magnifying-glass-location-solid.svg</file>
-        <file alias="zoom-out.svg">resources/icons/magnifying-glass-minus-solid.svg</file>
-        <file alias="zoom-in.svg">resources/icons/magnifying-glass-plus-solid.svg</file>
-        <file alias="edit-find.svg">resources/icons/magnifying-glass-solid.svg</file>
-        <file alias="mail-forward.svg">resources/icons/bug-solid.svg</file>
-        <file alias="media-playback-pause.svg">resources/icons/pause-solid.svg</file>
-        <file alias="media-playback-start.svg">resources/icons/play-solid.svg</file>
-        <file alias="edit-redo.svg">resources/icons/redo-solid.svg</file>
-        <file alias="edit-undo.svg">resources/icons/undo-solid.svg</file>
-        <file alias="folder-open.svg">resources/icons/external-link-alt-solid.svg</file>
+    <qresource prefix="/icons/light">
+        <file alias="index.theme">resources/icons/light/index.theme</file>
+
+    </qresource>
+
+    <qresource prefix="/icons/light/actions">
+        <file alias="zoom-fit-best.svg">resources/icons/light/actions/magnifying-glass-location-solid.svg</file>
+        <file alias="zoom-out.svg">resources/icons/light/actions/magnifying-glass-minus-solid.svg</file>
+        <file alias="zoom-in.svg">resources/icons/light/actions/magnifying-glass-plus-solid.svg</file>
+        <file alias="edit-find.svg">resources/icons/light/actions/magnifying-glass-solid.svg</file>
+        <file alias="mail-forward.svg">resources/icons/light/actions/bug-solid.svg</file>
+        <file alias="media-playback-pause.svg">resources/icons/light/actions/pause-solid.svg</file>
+        <file alias="media-playback-start.svg">resources/icons/light/actions/play-solid.svg</file>
+        <file alias="edit-redo.svg">resources/icons/light/actions/redo-solid.svg</file>
+        <file alias="edit-undo.svg">resources/icons/light/actions/undo-solid.svg</file>
+        <file alias="folder-open.svg">resources/icons/light/actions/external-link-alt-solid.svg</file>
+
+        <file alias="edit-case.svg">resources/icons/light/actions/edit-case.svg</file>
+        <file alias="edit-regex.svg">resources/icons/light/actions/edit-regex.svg</file>
+        <file alias="edit-word.svg">resources/icons/light/actions/edit-word.svg</file>
+
+    </qresource>
+
+    <qresource prefix="/icons/dark">
+        <file alias="index.theme">resources/icons/dark/index.theme</file>
+    </qresource>
+
+    <qresource prefix="/icons/dark/actions">
+        <file alias="index.theme">resources/icons/dark/index.theme</file>
+        <file alias="zoom-fit-best.svg">resources/icons/dark/actions/magnifying-glass-location-solid.svg</file>
+        <file alias="zoom-out.svg">resources/icons/dark/actions/magnifying-glass-minus-solid.svg</file>
+        <file alias="zoom-in.svg">resources/icons/dark/actions/magnifying-glass-plus-solid.svg</file>
+        <file alias="edit-find.svg">resources/icons/dark/actions/magnifying-glass-solid.svg</file>
+        <file alias="mail-forward.svg">resources/icons/dark/actions/bug-solid.svg</file>
+        <file alias="media-playback-pause.svg">resources/icons/dark/actions/pause-solid.svg</file>
+        <file alias="media-playback-start.svg">resources/icons/dark/actions/play-solid.svg</file>
+        <file alias="edit-redo.svg">resources/icons/dark/actions/redo-solid.svg</file>
+        <file alias="edit-undo.svg">resources/icons/dark/actions/undo-solid.svg</file>
+        <file alias="folder-open.svg">resources/icons/dark/actions/external-link-alt-solid.svg</file>
+
+        <file alias="edit-case.svg">resources/icons/dark/actions/edit-case.svg</file>
+        <file alias="edit-regex.svg">resources/icons/dark/actions/edit-regex.svg</file>
+        <file alias="edit-word.svg">resources/icons/dark/actions/edit-word.svg</file>
+
     </qresource>
 </RCC>

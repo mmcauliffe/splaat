@@ -21,6 +21,7 @@ from PySide6 import QtCore
 from sqlalchemy.orm import joinedload, selectinload
 
 from splaat.db import File, SoundFile, SqlBase, Utterance, WordInterval
+from splaat.desktop.models import TextFilterQuery
 from splaat.desktop.settings import SplaatSettings
 from splaat.textgrid import parse_file_to_db
 
@@ -234,7 +235,16 @@ class QueryUtterancesWorker(Worker):
             ]
             sort_index = self.kwargs.get("sort_index", None)
             files = session.query(*columns).join(Utterance.file).join(File.sound_file)
+            text_filter: TextFilterQuery = self.kwargs.get("text_filter", None)
 
+            if text_filter is not None:
+                filter_regex = text_filter.generate_expression(posix=False)
+                files = files.filter(Utterance.text.regexp_match(filter_regex))
+
+            phone_filter: TextFilterQuery = self.kwargs.get("phone_filter", None)
+            if phone_filter is not None:
+                filter_regex = phone_filter.generate_expression(posix=False)
+                files = files.filter(Utterance.phone_text.regexp_match(filter_regex))
             if count_only:
                 return files.count()
             if self.progress_callback is not None:
@@ -302,7 +312,7 @@ class LoadPhonesWorker(Worker):
             )
             query = cursor.fetchall()
             for p in query:
-                phones.append(p)
+                phones.append(p[0])
             cursor.close()
         finally:
             conn.close()
@@ -326,7 +336,7 @@ class LoadWordsWorker(Worker):
             )
             query = cursor.fetchall()
             for w in query:
-                words.append(w)
+                words.append(w[0])
             cursor.close()
         finally:
             conn.close()
